@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'"
+    />
+    <title>Hoshii</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="island" class="island">
+      <div class="pill">
+        <img id="mascot" class="mascot" src="sprites/idle-0.png" width="64" height="64" alt="" />
+        <div class="summary">
+          <div id="title" class="title">Hoshii</div>
+          <div id="line" class="line">Sin sesiones de Claude Code</div>
+        </div>
+        <span id="badge" class="badge" hidden></span>
+      </div>
+
+      <section id="ask" class="card ask" hidden>
+        <p class="ask-head">
+          <strong id="ask-project"></strong> quiere <span id="ask-action"></span>
+          <span id="ask-count" class="muted"></span>
+        </p>
+        <pre id="ask-text" class="ask-text"></pre>
+        <div class="actions">
+          <button id="btn-deny" class="btn" type="button">Denegar</button>
+          <button id="btn-allow" class="btn primary" type="button">Permitir</button>
+        </div>
+        <div class="timer"><div id="timer-bar" class="timer-bar"></div></div>
+        <div class="ask-foot">
+          <button id="btn-terminal" class="link" type="button">Responder en la terminal</button>
+          <span id="ask-keys" class="muted">Ctrl+Alt+Y · Ctrl+Alt+N</span>
+        </div>
+      </section>
+
+      <section id="connect" class="card" hidden>
+        <p>Hoshii todavía no está conectada a Claude Code.</p>
+        <p class="muted small">
+          Agrega sus hooks a ~/.claude/settings.json y guarda un respaldo antes. Las sesiones abiertas deben
+          reiniciarse.
+        </p>
+        <div class="actions">
+          <button id="btn-connect" class="btn primary" type="button">Conectar</button>
+        </div>
+      </section>
+
+      <ul id="list" class="card list" hidden></ul>
+      <p id="error" class="card error" hidden></p>
+    </main>
+    <script src="island.js"></script>
+  </body>
+</html>

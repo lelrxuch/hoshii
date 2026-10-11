@@ -1,0 +1,55 @@
+{
+  "name": "hoshii",
+  "productName": "Hoshii",
+  "version": "0.1.0",
+  "description": "Isla de escritorio para Claude Code: estado de tus sesiones y permisos con un clic",
+  "main": "src/main/index.js",
+  "author": "Cristopher Contreras",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lelrxuch/hoshii.git"
+  },
+  "homepage": "https://github.com/lelrxuch/hoshii#readme",
+  "bugs": {
+    "url": "https://github.com/lelrxuch/hoshii/issues"
+  },
+  "desktopName": "hoshii.desktop",
+  "scripts": {
+    "start": "electron .",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test && python3 -m unittest discover -s test -p 'test_*.py'",
+    "sprites": "python3 tools/sprites.py",
+    "dist": "electron-builder --linux AppImage"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9"
+  },
+  "build": {
+    "appId": "gt.cris.hoshii",
+    "productName": "Hoshii",
+    "publish": null,
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development",
+      "icon": "assets/icon.png",
+      "artifactName": "Hoshii-${version}.AppImage",
+      "synopsis": "Isla de escritorio para Claude Code"
+    }
+  }
+}
