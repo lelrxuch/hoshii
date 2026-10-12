@@ -38,6 +38,7 @@ let lastError = null;
 let size = { width: 360, height: 64 };
 let shortcutsOn = false;
 let pushTimer = null;
+let quitting = false;
 
 const sessions = createSessions();
 let permissions = null;
@@ -96,7 +97,7 @@ function onPermission(event, respond) {
     respond,
   );
   // Se muestra sin robar el foco: puedes estar escribiendo en otra ventana.
-  if (win && !win.isDestroyed() && !win.isVisible()) win.showInactive();
+  if (!win || win.isDestroyed() || !win.isVisible()) showIsland();
   return id;
 }
 
@@ -215,15 +216,25 @@ function createWindow() {
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.showInactive());
   win.webContents.on('did-finish-load', push);
+  // Cerrar la ventana (Alt+F4) solo la oculta; para salir está "Salir de Hoshii" en el menú.
+  win.on('close', (e) => {
+    if (quitting) return;
+    e.preventDefault();
+    win.hide();
+  });
   win.on('closed', () => {
     win = null;
   });
 }
 
-function toggleWindow() {
-  if (!win) return;
-  if (win.isVisible()) win.hide();
+function showIsland() {
+  if (!win || win.isDestroyed()) createWindow();
   else win.showInactive();
+}
+
+function toggleWindow() {
+  if (win && !win.isDestroyed() && win.isVisible()) win.hide();
+  else showIsland();
 }
 
 /* ---------- IPC (solo desde la isla) ---------- */
@@ -243,6 +254,9 @@ function setupIpc() {
   });
   ipcMain.handle('island:decide', (event, id, decision) => fromIsland(event) && decide(id, decision));
   ipcMain.handle('island:connect', (event) => (fromIsland(event) ? setConnected(true) : { ok: false }));
+  ipcMain.on('island:menu', (event) => {
+    if (fromIsland(event)) tray?.menu().popup({ window: win });
+  });
   ipcMain.on('island:hide', (event) => {
     if (fromIsland(event)) win.hide();
   });
@@ -299,7 +313,11 @@ if (platform.relaunchInX11IfNeeded()) {
 } else if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => win?.showInactive());
+  // Abrir Hoshii otra vez muestra la isla de la instancia que ya corre.
+  app.on('second-instance', () => app.isReady() && showIsland());
+  app.on('before-quit', () => {
+    quitting = true;
+  });
   app.whenReady().then(start);
   // La isla no se cierra con la ventana: vive en la bandeja.
   app.on('window-all-closed', () => {});

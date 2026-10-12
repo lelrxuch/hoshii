@@ -21,6 +21,25 @@ function createTray({ icon, onToggle, isConnected, onConnect, get, set, onQuit }
     return { label, type: 'checkbox', checked: Boolean(get()[key]), click: (item) => set(key, item.checked) };
   }
 
+  /** El mismo menú sirve para la bandeja y para el clic derecho en la isla (GNOME sin AppIndicator). */
+  function menu() {
+    const connected = isConnected();
+    return Menu.buildFromTemplate([
+      { label: 'Mostrar u ocultar la isla', click: onToggle },
+      { type: 'separator' },
+      check('Aprobar permisos desde la isla', 'approvals'),
+      check('Atajos Ctrl+Alt+Y / Ctrl+Alt+N', 'shortcuts'),
+      check('Avisar cuando Claude termine', 'notifyDone'),
+      check('Iniciar con el sistema', 'autostart'),
+      { type: 'separator' },
+      connected
+        ? { label: 'Desconectar de Claude Code', click: () => onConnect(false) }
+        : { label: 'Conectar con Claude Code', click: () => onConnect(true) },
+      { type: 'separator' },
+      { label: 'Salir de Hoshii', click: onQuit },
+    ]);
+  }
+
   function update({ sessions, pending }) {
     if (!tray) return;
     tray.setToolTip(
@@ -28,26 +47,10 @@ function createTray({ icon, onToggle, isConnected, onConnect, get, set, onQuit }
         ? `Hoshii · ${pending} permiso${pending === 1 ? '' : 's'} pendiente${pending === 1 ? '' : 's'}`
         : `Hoshii · ${sessions} sesión${sessions === 1 ? '' : 'es'}`,
     );
-    const connected = isConnected();
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: 'Mostrar u ocultar la isla', click: onToggle },
-        { type: 'separator' },
-        check('Aprobar permisos desde la isla', 'approvals'),
-        check('Atajos Ctrl+Alt+Y / Ctrl+Alt+N', 'shortcuts'),
-        check('Avisar cuando Claude termine', 'notifyDone'),
-        check('Iniciar con el sistema', 'autostart'),
-        { type: 'separator' },
-        connected
-          ? { label: 'Desconectar de Claude Code', click: () => onConnect(false) }
-          : { label: 'Conectar con Claude Code', click: () => onConnect(true) },
-        { type: 'separator' },
-        { label: 'Salir', click: onQuit },
-      ]),
-    );
+    tray.setContextMenu(menu());
   }
 
-  return { update };
+  return { update, menu };
 }
 
 module.exports = { createTray };

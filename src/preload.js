@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('hoshii', {
   connect: () => ipcRenderer.invoke('island:connect'),
   resize: (width, height) => ipcRenderer.send('island:resize', width, height),
   hide: () => ipcRenderer.send('island:hide'),
+  menu: () => ipcRenderer.send('island:menu'),
 });

@@ -14,6 +14,7 @@ Isla de escritorio para [Claude Code](https://code.claude.com) en Linux (GNOME).
 - **Estado por sesión**: pensando, qué herramienta usa y sobre qué archivo o comando, esperando tu mensaje, terminó o falló. Pasa el mouse por la isla para ver todas las sesiones.
 - **Permisos**: cuando Claude Code pide permiso, la isla muestra el comando o archivo completo con **Permitir**, **Denegar** o **Responder en la terminal**. También `Ctrl+Alt+Y` / `Ctrl+Alt+N`.
 - **Aviso al terminar**: notificación del sistema cuando una sesión termina su turno.
+- **Menú**: clic derecho en la isla (o el ícono de bandeja) para ajustes, conectar/desconectar y **Salir de Hoshii**. Cerrar la ventana solo la oculta; abrir Hoshii otra vez la vuelve a mostrar.
 
 No usa la API ni toca tus credenciales: Claude Code sigue usando tu cuenta como siempre y Hoshii solo recibe sus [hooks](https://code.claude.com/docs/en/hooks).
 

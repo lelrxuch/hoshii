@@ -206,6 +206,12 @@ function startIsland() {
     }
   });
 
+  // Clic derecho: el menú de ajustes (en GNOME sin AppIndicator no hay ícono de bandeja).
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    window.hoshii.menu();
+  });
+
   island.addEventListener('mouseenter', () => {
     clearTimeout(collapseTimer);
     hover = true;
