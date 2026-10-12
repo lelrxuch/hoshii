@@ -60,6 +60,7 @@ test('parseMessage valida lo mínimo', () => {
     null,
   );
   assert.equal(parseMessage(JSON.stringify({ v: 1, event: { ...ok.event, cwd: 3 } })), null);
+  assert.equal(parseMessage(JSON.stringify({ v: 1, event: { ...ok.event, truncated: 'si' } })), null);
 });
 
 test('socket y directorio con permisos de solo el usuario', async () => {
@@ -136,6 +137,52 @@ test('si el hook se corta antes de la respuesta, la app se entera', async () => 
     c.destroy();
     await new Promise((res) => setTimeout(res, 50));
     assert.equal(closed, 'req9');
+  });
+});
+
+test('el hook marca truncated cuando recorta la entrada', async () => {
+  let seen = null;
+  const onPermission = (e, respond) => {
+    seen = e;
+    respond('none');
+    return 'r';
+  };
+  await withServer({ onPermission }, async ({ socketPath }) => {
+    await runHook(socketPath, {
+      ...base,
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'Bash',
+      tool_input: { command: 'ls' },
+    });
+    assert.equal(seen.truncated, undefined);
+    await runHook(socketPath, {
+      ...base,
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'Bash',
+      tool_input: { command: `ls ${'x'.repeat(3000)}` },
+    });
+    assert.equal(seen.truncated, true);
+  });
+});
+
+test('el hook no se conecta si el directorio del socket no es seguro', async () => {
+  await withServer({}, async ({ socketPath, events }) => {
+    fs.chmodSync(path.dirname(socketPath), 0o755); // como si otro lo hubiera preparado
+    const r = await runHook(socketPath, { ...base, hook_event_name: 'Stop' });
+    assert.deepEqual(r, { code: 0, out: '' });
+    await new Promise((res) => setTimeout(res, 50));
+    assert.equal(events.length, 0);
+    fs.chmodSync(path.dirname(socketPath), 0o700);
+  });
+});
+
+test('el hook no se conecta a algo que no es un socket', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hoshii-nosock-'));
+  const fake = path.join(dir, 'hoshii.sock');
+  fs.writeFileSync(fake, '');
+  assert.deepEqual(await runHook(fake, { ...base, hook_event_name: 'PermissionRequest' }), {
+    code: 0,
+    out: '',
   });
 });
 

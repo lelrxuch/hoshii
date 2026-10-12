@@ -8,7 +8,7 @@ const path = require('node:path');
 const paths = require('../src/main/paths');
 const config = require('../src/main/config');
 const { needsX11Relaunch } = require('../src/main/platform');
-const { viewModel, relTime, DONE_MS } = require('../src/renderer/island');
+const { viewModel, relTime, askNotes, DONE_MS } = require('../src/renderer/island');
 
 /* ---------- paths ---------- */
 
@@ -156,4 +156,12 @@ test('relTime', () => {
   assert.equal(relTime(5000), 'ahora');
   assert.equal(relTime(5 * 60 * 1000), 'hace 5 min');
   assert.equal(relTime(3 * 3600 * 1000), 'hace 3 h');
+});
+
+test('askNotes: sin Permitir si no está completo; avisos de ruta externa e invisibles', () => {
+  assert.deepEqual(askNotes({ complete: true, outside: false, hidden: 0 }), { allow: true, notes: [] });
+  const n = askNotes({ complete: false, outside: true, hidden: 2 });
+  assert.equal(n.allow, false);
+  assert.equal(n.notes.length, 3);
+  assert.equal(askNotes({}).allow, false, 'sin dato de completo no se permite');
 });

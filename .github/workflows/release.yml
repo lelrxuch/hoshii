@@ -12,10 +12,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Sin caché de npm: el binario publicado se arma siempre desde el registro y el lockfile.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
       - run: npm ci
       - run: npm test
       # electron-builder no publica: build.publish es null en package.json.
@@ -31,8 +33,12 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: out
@@ -40,6 +46,11 @@ jobs:
       - name: Checksums
         working-directory: out
         run: sha256sum * > SHA256SUMS.txt
+      # Atestación de origen: prueba que la AppImage salió de este repo y este workflow.
+      # Verificar: gh attestation verify Hoshii-<versión>.AppImage -R lelrxuch/hoshii
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: out/*.AppImage
       - name: Notas desde CHANGELOG.md
         run: |
           version="${GITHUB_REF_NAME#v}"

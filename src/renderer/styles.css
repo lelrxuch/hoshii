@@ -167,6 +167,20 @@ body {
   user-select: text;
 }
 
+.warn {
+  margin: -2px 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 159, 10, 0.14);
+  color: var(--orange);
+  font-size: 12px;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .actions {
   display: flex;
   gap: 8px;

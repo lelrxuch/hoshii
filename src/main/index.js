@@ -10,8 +10,8 @@ const autostart = require('./autostart');
 const { createStore } = require('./config');
 const { createServer } = require('./server');
 const { createSessions } = require('./sessions');
-const { createPermissions } = require('./permissions');
-const { requestText, requestAction, projectName } = require('./describe');
+const { createPermissions, GUARD_MS } = require('./permissions');
+const { requestInfo, requestAction, projectName } = require('./describe');
 const { createTray } = require('./tray');
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -53,6 +53,7 @@ function snapshot() {
     approvals: config.approvals,
     shortcuts: config.shortcuts,
     waitMs: config.waitSeconds * 1000,
+    guardMs: GUARD_MS,
     error: lastError,
     now: Date.now(),
   };
@@ -86,16 +87,20 @@ function onPermission(event, respond) {
   push();
   if (!config.approvals) return null;
   const s = sessions.get(event.session_id);
+  const req = requestInfo(event.tool_name, event.tool_input, event.cwd, {
+    truncated: event.truncated === true,
+  });
   const id = permissions.add(
     {
       sessionId: event.session_id,
       project: s?.project || projectName(event.cwd),
       tool: event.tool_name || '',
       action: requestAction(event.tool_name),
-      text: requestText(event.tool_name, event.tool_input, event.cwd),
+      ...req,
     },
     respond,
   );
+  if (!id) return null; // demasiados pedidos a la vez: este lo pregunta la terminal
   // Se muestra sin robar el foco: puedes estar escribiendo en otra ventana.
   if (!win || win.isDestroyed() || !win.isVisible()) showIsland();
   return id;

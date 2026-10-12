@@ -38,8 +38,18 @@ function hookCommand(hookFile) {
   return `python3 "${hookFile.replace(/(["\\$`])/g, '\\$1')}"`;
 }
 
+/** Forma exacta del comando que escribe hookCommand(): python3 "<ruta>/hoshii/hook.py". */
+const OUR_COMMAND_RE = /^python3 "(?:[^"\\]|\\.)*\/hoshii\/hook\.py"$/;
+/** Respaldos de settings.json que se conservan; los más viejos se borran. */
+const KEEP_BACKUPS = 5;
+
 function isOurs(handler) {
-  return isPlainObject(handler) && typeof handler.command === 'string' && handler.command.includes(HOOK_MARK);
+  return (
+    isPlainObject(handler) &&
+    handler.type === 'command' &&
+    typeof handler.command === 'string' &&
+    OUR_COMMAND_RE.test(handler.command)
+  );
 }
 
 function handlerFor(event, command) {
@@ -140,7 +150,8 @@ function readSettings(settingsPath) {
 function writeAtomic(file, text, mode) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.hoshii-tmp-${process.pid}`;
-  fs.writeFileSync(tmp, text, { mode });
+  fs.rmSync(tmp, { force: true }); // restos de una ejecución que murió a medias
+  fs.writeFileSync(tmp, text, { mode, flag: 'wx' }); // wx: falla si alguien lo creó entre medio
   fs.chmodSync(tmp, mode);
   fs.renameSync(tmp, file);
 }
@@ -149,7 +160,21 @@ function writeAtomic(file, text, mode) {
 function backup(realPath, date) {
   const dest = `${realPath}.hoshii-${stamp(date)}.bak`;
   fs.copyFileSync(realPath, dest, fs.constants.COPYFILE_EXCL);
+  pruneBackups(realPath);
   return dest;
+}
+
+/** Deja solo los KEEP_BACKUPS respaldos más recientes (el nombre lleva la fecha, así que ordena). */
+function pruneBackups(realPath) {
+  const dir = path.dirname(realPath);
+  const prefix = `${path.basename(realPath)}.hoshii-`;
+  const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d{8}-\\d{6}\\.bak$`);
+  const old = fs
+    .readdirSync(dir)
+    .filter((n) => re.test(n))
+    .sort()
+    .slice(0, -KEEP_BACKUPS);
+  for (const name of old) fs.rmSync(path.join(dir, name), { force: true });
 }
 
 /** Copia el hook a su ruta fija si falta o cambió (actualizaciones de la app). */
@@ -193,6 +218,8 @@ function status({ settingsPath, hookFile }) {
 
 module.exports = {
   HOOK_MARK,
+  KEEP_BACKUPS,
+  isOurs,
   EVENTS,
   hookCommand,
   addHooks,

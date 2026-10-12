@@ -2,6 +2,21 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.1.1] - 2026-10-11
+
+### Seguridad
+
+- El hook solo habla con un socket tuyo: comprueba el directorio (700), el dueño del socket y, ya conectado, que el proceso del otro lado corre con tu usuario. Antes, si se usaba `/tmp`, otro usuario del equipo podía hacerse pasar por la app y aprobar permisos.
+- "Permitir" solo aparece si el pedido se ve completo. Si el hook recortó algo o el texto es muy largo, hay que responder en la terminal.
+- Las rutas fuera del proyecto se muestran completas (`~/.ssh/authorized_keys`, no `authorized_keys`) y con aviso.
+- Las herramientas MCP y desconocidas muestran todos sus argumentos.
+- Los caracteres invisibles y de control (bidi, ancho cero, escapes ANSI) se marcan como `⟨U+XXXX⟩`.
+- Un pedido recién llegado no se puede permitir durante 600 ms, ni con clic ni con atajo; tampoco el siguiente de la cola al mantener la tecla.
+- Máximo 8 pedidos en espera y 32 conexiones; lo demás vuelve a la terminal.
+- La conexión con Claude Code solo reconoce el comando exacto de Hoshii, escribe temporales con `wx` y conserva los últimos 5 respaldos de `settings.json`.
+- Release: el checkout no guarda credenciales, sin caché de npm al compilar y la AppImage lleva atestación de origen (`gh attestation verify`).
+- Dependabot tampoco propone saltos de versión mayor en las Actions.
+
 ## [0.1.0]
 
 ### Agregado

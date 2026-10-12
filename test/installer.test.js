@@ -132,3 +132,23 @@ test('syncHookFile solo escribe si cambió', () => {
   fs.writeFileSync(t.hookFile, 'viejo');
   assert.equal(inst.syncHookFile(HOOK_SOURCE, t.hookFile), true);
 });
+
+test('isOurs solo reconoce el comando exacto de Hoshii', () => {
+  assert.equal(inst.isOurs({ type: 'command', command: CMD }), true);
+  assert.equal(inst.isOurs({ type: 'command', command: 'mi-script --log hoshii/hook.py' }), false);
+  assert.equal(inst.isOurs({ type: 'command', command: `${CMD} && rm -rf ~` }), false);
+  assert.equal(inst.isOurs({ type: 'http', command: CMD }), false);
+});
+
+test('solo se conservan los últimos respaldos', () => {
+  const t = tmp();
+  fs.mkdirSync(path.dirname(t.settingsPath), { recursive: true });
+  fs.writeFileSync(t.settingsPath, '{}');
+  for (let i = 0; i < inst.KEEP_BACKUPS + 3; i++) {
+    const action = i % 2 === 0 ? 'install' : 'uninstall';
+    inst.apply(action, { ...t, date: new Date(2026, 9, 11, 1, 0, i) });
+  }
+  const baks = fs.readdirSync(path.dirname(t.settingsPath)).filter((n) => n.endsWith('.bak'));
+  assert.equal(baks.length, inst.KEEP_BACKUPS);
+  assert.ok(!baks.includes('settings.json.hoshii-20261011-010000.bak'), 'el más viejo se borró');
+});

@@ -34,6 +34,27 @@ class TestPick(unittest.TestCase):
         self.assertEqual(ev, {'session_id': 's', 'hook_event_name': 'UserPromptSubmit', 'cwd': '/p'})
 
 
+class TestTruncated(unittest.TestCase):
+    def test_marca_si_recorta(self):
+        ev = hook.pick({'session_id': 's', 'hook_event_name': 'PermissionRequest',
+                        'tool_input': {'command': 'x' * 5000}})
+        self.assertTrue(ev['truncated'])
+        ev = hook.pick({'session_id': 's', 'hook_event_name': 'PermissionRequest',
+                        'tool_input': {'items': list(range(100))}})
+        self.assertTrue(ev['truncated'])
+
+    def test_no_marca_si_entra_completo(self):
+        ev = hook.pick({'session_id': 's', 'hook_event_name': 'PermissionRequest',
+                        'tool_input': {'command': 'ls -la'}})
+        self.assertNotIn('truncated', ev)
+
+
+class TestSafeSocket(unittest.TestCase):
+    def test_rechaza_rutas_inseguras(self):
+        self.assertFalse(hook._safe_socket('/tmp/hoshii-no-existe.sock'))  # /tmp no es 700
+        self.assertFalse(hook._safe_socket('/etc/passwd'))
+
+
 class TestOutput(unittest.TestCase):
     def test_allow_deny(self):
         allow = hook.output_for({'decision': 'allow'})

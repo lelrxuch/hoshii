@@ -10,6 +10,10 @@ Reglas de seguridad:
   imprimir nada y Claude Code pregunta en la terminal como siempre.
 - No hace conexiones de red. Solo habla con el socket local.
 - Solo reenvía los campos que la isla necesita, recortados. El texto del prompt no se envía.
+  Si recorta algo de lo que se va a aprobar, lo marca (truncated) y la isla no ofrece "Permitir".
+- Antes de mandar nada comprueba que el socket es tuyo: directorio 700 tuyo, socket tuyo y, ya
+  conectado, que el proceso del otro lado corre con tu usuario (SO_PEERCRED). Así otro usuario
+  del equipo no puede hacerse pasar por la app y aprobar permisos.
 
 Solo usa la biblioteca estándar de Python 3.
 """
@@ -18,6 +22,7 @@ import json
 import os
 import socket
 import stat
+import struct
 import sys
 
 PROTOCOL = 1
@@ -35,6 +40,8 @@ FIELDS = (
     'source',
     'reason',
 )
+# Campos que agrega el hook (no vienen de Claude Code).
+# truncated: se recortó parte de tool_input.
 MAX_STR = 2000
 MAX_ITEMS = 40
 MAX_DEPTH = 4
@@ -68,25 +75,49 @@ def socket_path(env=None):
     return '/tmp/hoshii-%d/hoshii.sock' % uid
 
 
-def trim(value, depth=0):
-    """Recorta textos largos y estructuras grandes para que el mensaje sea pequeño."""
+def trim(value, depth=0, cut=None):
+    """Recorta textos largos y estructuras grandes para que el mensaje sea pequeño.
+    Si `cut` es una lista, agrega True cada vez que se pierde algo."""
+    def lost():
+        if cut is not None:
+            cut.append(True)
+
     if depth > MAX_DEPTH:
+        lost()
         return None
     if isinstance(value, str):
-        return value if len(value) <= MAX_STR else value[:MAX_STR] + '…'
+        if len(value) <= MAX_STR:
+            return value
+        lost()
+        return value[:MAX_STR] + '…'
     if isinstance(value, dict):
-        return {str(k)[:100]: trim(v, depth + 1) for k, v in list(value.items())[:MAX_ITEMS]}
+        items = list(value.items())
+        if len(items) > MAX_ITEMS:
+            lost()
+        out = {}
+        for k, v in items[:MAX_ITEMS]:
+            key = str(k)
+            if len(key) > 100:
+                lost()
+            out[key[:100]] = trim(v, depth + 1, cut)
+        return out
     if isinstance(value, list):
-        return [trim(v, depth + 1) for v in value[:MAX_ITEMS]]
+        if len(value) > MAX_ITEMS:
+            lost()
+        return [trim(v, depth + 1, cut) for v in value[:MAX_ITEMS]]
     if isinstance(value, (bool, int, float)) or value is None:
         return value
+    lost()
     return None
 
 
 def pick(data):
     event = {k: data[k] for k in FIELDS if k in data}
     if 'tool_input' in event:
-        event['tool_input'] = trim(event['tool_input'])
+        cut = []
+        event['tool_input'] = trim(event['tool_input'], cut=cut)
+        if cut:
+            event['truncated'] = True
     for k in ('message', 'cwd'):
         if isinstance(event.get(k), str):
             event[k] = trim(event[k])
@@ -104,6 +135,27 @@ def output_for(reply):
     if behavior == 'deny':
         decision['message'] = 'Denegado desde Hoshii.'
     return {'hookSpecificOutput': {'hookEventName': 'PermissionRequest', 'decision': decision}}
+
+
+def _safe_socket(path):
+    """El socket y su directorio son tuyos y nadie más puede tocarlos."""
+    if not _usable_dir(os.path.dirname(path) or '.'):
+        return False
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISSOCK(st.st_mode) and st.st_uid == os.getuid()
+
+
+def _peer_is_me(sock):
+    """El proceso al otro lado del socket corre con tu usuario (Linux)."""
+    opt = getattr(socket, 'SO_PEERCRED', None)
+    if opt is None:
+        return False
+    raw = sock.getsockopt(socket.SOL_SOCKET, opt, struct.calcsize('iII'))
+    _pid, uid, _gid = struct.unpack('iII', raw)
+    return uid == os.getuid()
 
 
 def read_line(sock):
@@ -130,10 +182,15 @@ def main(stdin=None, stdout=None, env=None):
         return 0
     event = pick(data)
     asks = event['hook_event_name'] == 'PermissionRequest'
+    path = socket_path(env)
+    if not _safe_socket(path):
+        return 0
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
         sock.settimeout(CONNECT_TIMEOUT_S)
-        sock.connect(socket_path(env))
+        sock.connect(path)
+        if not _peer_is_me(sock):
+            return 0
         sock.sendall((json.dumps({'v': PROTOCOL, 'event': event}) + '\n').encode('utf-8'))
         if not asks:
             return 0

@@ -2,7 +2,16 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { describeTool, requestText, requestAction, projectName, DETAIL_MAX } = require('../src/main/describe');
+const {
+  describeTool,
+  requestInfo,
+  requestAction,
+  projectName,
+  shortPath,
+  reveal,
+  DETAIL_MAX,
+  REQUEST_MAX,
+} = require('../src/main/describe');
 
 test('Bash muestra el comando', () => {
   assert.deepEqual(describeTool('Bash', { command: 'npm test' }), { verb: 'Ejecutando', detail: 'npm test' });
@@ -13,9 +22,13 @@ test('archivos dentro del proyecto se muestran relativos', () => {
   assert.equal(r.detail, 'src/main.js');
 });
 
-test('archivos fuera del proyecto muestran solo el nombre', () => {
-  const r = describeTool('Read', { file_path: '/etc/hosts' }, '/home/isai/p');
-  assert.equal(r.detail, 'hosts');
+test('archivos fuera del proyecto muestran la ruta completa, con ~ en la carpeta personal', () => {
+  assert.equal(describeTool('Read', { file_path: '/etc/hosts' }, '/home/isai/p').detail, '/etc/hosts');
+  assert.equal(
+    shortPath('/home/isai/.ssh/authorized_keys', '/home/isai/p', '/home/isai'),
+    '~/.ssh/authorized_keys',
+  );
+  assert.equal(shortPath('/home/isai/p/../q/x.js', '/home/isai/p', '/home/isai'), '~/q/x.js');
 });
 
 test('WebFetch muestra el host', () => {
@@ -43,13 +56,47 @@ test('el detalle se recorta y colapsa espacios', () => {
   assert.ok(!r.detail.includes('\n'));
 });
 
-test('requestText conserva el comando completo con saltos de línea', () => {
-  assert.equal(requestText('Bash', { command: 'git add .\ngit commit -m x' }), 'git add .\ngit commit -m x');
+const HOME = '/home/isai';
+
+test('requestInfo: el comando completo con saltos de línea', () => {
+  assert.deepEqual(requestInfo('Bash', { command: 'git add .\ngit commit -m x' }, '/p', { home: HOME }), {
+    text: 'git add .\ngit commit -m x',
+    complete: true,
+    outside: false,
+    hidden: 0,
+  });
 });
 
-test('requestText de herramientas desconocidas cae al JSON', () => {
-  assert.equal(requestText('Rara', {}), 'Rara');
-  assert.equal(requestText('', { a: 1 }), '{"a":1}');
+test('requestInfo: archivo fuera del proyecto se marca y muestra la ruta real', () => {
+  const r = requestInfo('Write', { file_path: '/home/isai/.ssh/authorized_keys' }, '/home/isai/p', {
+    home: HOME,
+  });
+  assert.equal(r.text, '~/.ssh/authorized_keys');
+  assert.equal(r.outside, true);
+  const inside = requestInfo('Edit', { file_path: '/home/isai/p/src/a.js' }, '/home/isai/p', { home: HOME });
+  assert.deepEqual([inside.text, inside.outside], ['src/a.js', false]);
+});
+
+test('requestInfo: recortado por el hook o muy largo → no completo', () => {
+  assert.equal(requestInfo('Bash', { command: 'ls' }, '/p', { truncated: true }).complete, false);
+  const long = requestInfo('Bash', { command: 'x'.repeat(REQUEST_MAX + 10) }, '/p');
+  assert.equal(long.complete, false);
+  assert.equal(long.text.length, REQUEST_MAX);
+});
+
+test('requestInfo: MCP y desconocidas muestran todos sus argumentos', () => {
+  const r = requestInfo('mcp__github__delete_repo', { repo: 'lelrxuch/hoshii' }, '/p');
+  assert.match(r.text, /^mcp__github__delete_repo\n/);
+  assert.match(r.text, /"repo": "lelrxuch\/hoshii"/);
+  assert.equal(requestInfo('Rara', {}, '/p').text, 'Rara');
+});
+
+test('caracteres invisibles y bidi se marcan', () => {
+  const r = requestInfo('Bash', { command: 'echo hola\u202e;rm -rf ~\u200b' }, '/p');
+  assert.equal(r.text, 'echo hola⟨U+202E⟩;rm -rf ~⟨U+200B⟩');
+  assert.equal(r.hidden, 2);
+  assert.deepEqual(reveal('a\tb\nc'), { text: 'a\tb\nc', hidden: 0 }, 'tab y salto de línea se respetan');
+  assert.equal(reveal('\u001b[31m').hidden, 1, 'escapes ANSI se marcan');
 });
 
 test('requestAction', () => {

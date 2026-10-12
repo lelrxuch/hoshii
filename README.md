@@ -24,6 +24,7 @@ No usa la API ni toca tus credenciales: Claude Code sigue usando tu cuenta como 
 
    ```sh
    sha256sum -c SHA256SUMS.txt --ignore-missing
+   gh attestation verify Hoshii-*.AppImage -R lelrxuch/hoshii   # desde 0.1.1
    ```
 
 2. Dale permisos de ejecución y ábrela:
@@ -51,6 +52,8 @@ Claude Code ──hook──> python3 hook.py ──socket Unix──> Hoshii (i
 
 ## Seguridad
 
+- **Solo tu usuario.** El hook comprueba que el socket y el proceso de la app son tuyos antes de mandar nada.
+- **Ves lo que apruebas.** El comando o la ruta completa, con las rutas fuera del proyecto y los caracteres invisibles marcados. Si no cabe entero, no hay botón Permitir: se responde en la terminal.
 - **Nunca aprueba por su cuenta.** Si la app está cerrada, no responde, vence el plazo (90 s) o algo falla, el hook sale sin decidir y Claude Code te pregunta en la terminal como siempre.
 - **Sin red.** Ni la app ni el hook hacen conexiones de red; solo el socket local.
 - **Mínimo de datos.** El hook reenvía solo lo que la isla muestra (sesión, carpeta, herramienta y su entrada recortada). El texto de tus prompts y la ruta del transcript se descartan.

@@ -19,6 +19,8 @@ const MAX_LINE = 64 * 1024;
 const FIRST_LINE_TIMEOUT_MS = 5000;
 const EVENT_RE = /^[A-Za-z]{1,64}$/;
 const SESSION_MAX = 200;
+/** Conexiones simultáneas (cada pedido de permiso mantiene una abierta). */
+const MAX_CONNECTIONS = 32;
 
 /** Valida el mensaje del hook. Devuelve el evento o null. */
 function parseMessage(line) {
@@ -35,6 +37,7 @@ function parseMessage(line) {
   if (typeof e.session_id !== 'string' || !e.session_id || e.session_id.length > SESSION_MAX) return null;
   if (e.cwd !== undefined && typeof e.cwd !== 'string') return null;
   if (e.tool_name !== undefined && typeof e.tool_name !== 'string') return null;
+  if (e.truncated !== undefined && typeof e.truncated !== 'boolean') return null;
   return e;
 }
 
@@ -119,6 +122,7 @@ function createServer({ socketPath, onEvent, onPermission, onPermissionClosed })
       fs.unlinkSync(socketPath); // quedó de una ejecución que no cerró bien
     }
     server = net.createServer(handle);
+    server.maxConnections = MAX_CONNECTIONS;
     await new Promise((resolve, reject) => {
       server.once('error', reject);
       server.listen(socketPath, () => {
@@ -143,4 +147,4 @@ function createServer({ socketPath, onEvent, onPermission, onPermissionClosed })
   return { start, stop };
 }
 
-module.exports = { createServer, parseMessage, PROTOCOL, MAX_LINE };
+module.exports = { createServer, parseMessage, PROTOCOL, MAX_LINE, MAX_CONNECTIONS };

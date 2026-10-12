@@ -35,6 +35,19 @@ class C:
         if 0 <= x < W and 0 <= y < H:
             self.p[y][x] = P[c]
 
+    def svg(self):
+        # un <rect> por tramo horizontal del mismo color
+        out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" shape-rendering="crispEdges">']
+        for y, row in enumerate(self.p):
+            x = 0
+            while x < W:
+                c, x0 = row[x], x
+                while x < W and row[x] == c:
+                    x += 1
+                if c is not T:
+                    out.append(f'<rect x="{x0}" y="{y}" width="{x - x0}" height="1" fill="#{bytes(c).hex()}"/>')
+        return '\n'.join(out + ['</svg>\n'])
+
     def g(self, x, y):
         return self.p[y][x] if 0 <= x < W and 0 <= y < H else T
 
@@ -305,3 +318,5 @@ if __name__ == '__main__':
         sheet.alpha_composite(d.img(k), (24 + i * (W * k + 24), 24))
     sheet.save(os.path.join(root, 'docs', 'mascota.png'))
     draw('idle').img(4).save(os.path.join(root, 'assets', 'icon.png'))
+    with open(os.path.join(root, 'assets', 'icon.svg'), 'w') as f:
+        f.write(draw('idle').svg())

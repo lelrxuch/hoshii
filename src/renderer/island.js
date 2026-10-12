@@ -18,6 +18,16 @@ function relTime(ms) {
   return `hace ${Math.round(m / 60)} h`;
 }
 
+/** Avisos del pedido de permiso. allow=false: no se ofrece "Permitir". */
+function askNotes(ask) {
+  if (!ask) return { allow: false, notes: [] };
+  const notes = [];
+  if (!ask.complete) notes.push('No se puede mostrar completo. Revísalo en la terminal.');
+  if (ask.outside) notes.push('Toca un archivo fuera de la carpeta del proyecto.');
+  if (ask.hidden) notes.push(`Tiene ${ask.hidden} carácter(es) invisible(s), marcados como ⟨U+…⟩.`);
+  return { allow: ask.complete === true, notes };
+}
+
 function activity(s) {
   return s.detail ? `${s.verb}: ${s.detail}` : s.verb || 'Lista';
 }
@@ -57,6 +67,7 @@ function viewModel(state, now, hover) {
     line,
     badge,
     ask: pending[0] || null,
+    askNotes: askNotes(pending[0]),
     askCount: pending.length,
     showConnect,
     showList,
@@ -84,6 +95,8 @@ function startIsland() {
   let mascotState = null;
   let frame = 0;
   let busy = false;
+  let shownAsk = null;
+  let guardTimer = null;
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -172,8 +185,22 @@ function startIsland() {
       $('ask-action').textContent = `${vm.ask.action}:`;
       $('ask-count').textContent = vm.askCount > 1 ? `(1 de ${vm.askCount})` : '';
       $('ask-text').textContent = vm.ask.text || '(sin detalle)';
+      $('ask-warn').hidden = !vm.askNotes.notes.length;
+      $('ask-warn').textContent = vm.askNotes.notes.join(' ');
+      $('btn-allow').hidden = !vm.askNotes.allow;
       $('ask-keys').hidden = !state.shortcuts;
+      // Un pedido recién llegado no se puede permitir de inmediato (mismo plazo que aplica la app).
+      if (vm.ask.id !== shownAsk) {
+        shownAsk = vm.ask.id;
+        $('btn-allow').disabled = true;
+        clearTimeout(guardTimer);
+        guardTimer = setTimeout(() => {
+          $('btn-allow').disabled = false;
+        }, state.guardMs || 600);
+      }
       renderTimer();
+    } else {
+      shownAsk = null;
     }
     $('connect').hidden = !vm.showConnect;
     $('list').hidden = !vm.showList;
@@ -240,5 +267,5 @@ function startIsland() {
   render();
 }
 
-if (typeof module !== 'undefined') module.exports = { viewModel, relTime, DONE_MS };
+if (typeof module !== 'undefined') module.exports = { viewModel, relTime, askNotes, DONE_MS };
 else startIsland();
